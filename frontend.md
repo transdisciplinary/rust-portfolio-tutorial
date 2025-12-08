@@ -1,5 +1,6 @@
 # 🎨 Frontend Guide (Askama + HTMX)
 
+
 We avoid heavy frameworks like React/Next.js. Instead, we use **Server-Side Rendering (SSR)** mixed with **HTMX** for interactivity.
 
 ## 1. Templates (Askama)

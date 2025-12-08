@@ -1,5 +1,6 @@
 # Rust Scale-to-Zero Artist Portfolio
 
+
 Welcome to the **Rust Scale-to-Zero Artist Portfolio** tutorial project!
 
 This repository demonstrates how to build a high-performance, cost-effective, and aesthetically pleasing artist portfolio using **Rust**, **HTMX**, and modern cloud infrastructure.

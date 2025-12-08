@@ -1,5 +1,6 @@
 # 🚀 Deployment Guide
 
+
 This project handles two types of deployment: **Dynamic** (Backend) and **Static** (Frontend).
 
 ## 1. Hosting Provider Setup

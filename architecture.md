@@ -1,5 +1,6 @@
 # 🏗️ System Architecture
 
+
 This project uses a **Hybrid Architecture** to balance performance, cost, and functionality.
 
 ## The "Scale-to-Zero" Concept
