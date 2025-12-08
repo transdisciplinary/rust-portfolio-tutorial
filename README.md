@@ -3,7 +3,9 @@
 
 Welcome to the **Rust Scale-to-Zero Artist Portfolio** tutorial project!
 
-This repository demonstrates how to build a high-performance, cost-effective, and aesthetically pleasing artist portfolio using **Rust**, **HTMX**, and modern cloud infrastructure.
+This repository demonstrates how to build a high-performance, cost-effective, and aesthetically pleasing artist portfolio using **Rust**, **HTMX**, and modern cloud infrastructure. For small projects that use less that 30gb of storage (optimised webp images and audio), the only cost is your getting a domain name.
+
+Tip: install antigravity and clone this repository there to let agentic coding make this for you.
 
 ## 🚀 Key Concepts
 
