@@ -15,12 +15,14 @@ pub struct IndexTemplate {
 #[template(path = "admin/pages_list.html")]
 pub struct PagesListTemplate {
     pub pages: Vec<Page>,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
 #[template(path = "admin/page_form.html")]
 pub struct PageFormTemplate {
     pub page: Page,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
@@ -37,6 +39,7 @@ pub struct ProjectTemplate {
 #[template(path = "admin/project_form.html")]
 pub struct ProjectFormTemplate {
     pub project: Option<Project>,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
@@ -45,6 +48,7 @@ pub struct ProjectBlocksTemplate {
     pub project_id: Uuid,
     pub project_title: String,
     pub blocks: Vec<ContentBlock>,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
@@ -55,12 +59,14 @@ pub struct BlockFormTemplate {
     pub block_type: String,
     pub sort_order: i32,
     pub content: String,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
 #[template(path = "admin/dashboard.html")]
 pub struct DashboardTemplate {
     pub projects: Vec<Project>,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
@@ -81,12 +87,14 @@ pub struct AboutTemplate {
 #[template(path = "admin/settings.html")]
 pub struct SettingsTemplate {
     pub current_username: String,
+    pub authenticity_token: String,
 }
 
 #[derive(Template)]
 #[template(path = "admin/login.html")]
 pub struct LoginTemplate {
     pub error: Option<String>,
+    pub authenticity_token: String,
 }
 
 

@@ -8,6 +8,7 @@
     </header>
 
     <form action="/admin/pages/update/{{ page.slug }}" method="POST" class="form-stack">
+        <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
         <div class="form-group">
             <label for="title">Title</label>
             <input type="text" id="title" name="title" value="{{ page.title }}" class="form-input" required>

@@ -9,7 +9,19 @@ use uuid::Uuid;
 use serde::Deserialize;
 use time::Date;
 use crate::models::{Project, ContentBlock, BlockContent, User};
-use crate::templates::{DashboardTemplate, ProjectFormTemplate, ProjectBlocksTemplate, BlockFormTemplate, SettingsTemplate};
+use crate::templates::{DashboardTemplate, ProjectFormTemplate, ProjectBlocksTemplate, BlockFormTemplate, SettingsTemplate, PagesListTemplate, PageFormTemplate};
+use tower_sessions::Session;
+use crate::csrf::{get_or_create_csrf_token, verify_csrf_token};
+
+#[derive(Deserialize)]
+pub struct DeleteForm {
+    pub authenticity_token: String,
+}
+
+#[derive(Deserialize)]
+pub struct DeployForm {
+    pub authenticity_token: String,
+}
 
 
 #[derive(Deserialize)]
@@ -17,27 +29,43 @@ pub struct ProjectForm {
     pub title: String,
     pub slug: String,
     pub description: Option<String>,
-    pub start_date: String, // HTML date input returns string
+    pub start_date: String,
     pub end_date: Option<String>,
+    pub authenticity_token: String,
 }
 
-pub async fn dashboard(State(pool): State<PgPool>) -> impl IntoResponse {
+pub async fn dashboard(
+    State(pool): State<PgPool>,
+    session: Session,
+) -> impl IntoResponse {
     let projects = sqlx::query_as::<_, Project>("SELECT * FROM projects ORDER BY start_date DESC")
         .fetch_all(&pool)
         .await
         .unwrap_or_default();
 
-    DashboardTemplate { projects }
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    DashboardTemplate { 
+        projects,
+        authenticity_token: csrf_token,
+    }
 }
 
-pub async fn new_project() -> impl IntoResponse {
-    ProjectFormTemplate { project: None }
+pub async fn new_project(session: Session) -> impl IntoResponse {
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    ProjectFormTemplate { 
+        project: None,
+        authenticity_token: csrf_token,
+    }
 }
 
 pub async fn create_project(
     State(pool): State<PgPool>,
+    session: Session,
     Form(payload): Form<ProjectForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &payload.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     let start_date = parse_date(&payload.start_date);
     let end_date = parse_date_option(payload.end_date);
 
@@ -53,12 +81,13 @@ pub async fn create_project(
     .await
     .unwrap();
 
-    Redirect::to("/admin/dashboard")
+    Redirect::to("/admin/dashboard").into_response()
 }
 
 pub async fn edit_project(
     State(pool): State<PgPool>,
     Path(id): Path<Uuid>,
+    session: Session,
 ) -> impl IntoResponse {
     let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1")
         .bind(id)
@@ -66,14 +95,22 @@ pub async fn edit_project(
         .await
         .ok();
 
-    ProjectFormTemplate { project }
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    ProjectFormTemplate { 
+        project,
+        authenticity_token: csrf_token,
+    }
 }
 
 pub async fn update_project(
     State(pool): State<PgPool>,
     Path(id): Path<Uuid>,
+    session: Session,
     Form(payload): Form<ProjectForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &payload.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     let start_date = parse_date(&payload.start_date);
     let end_date = parse_date_option(payload.end_date);
 
@@ -90,20 +127,25 @@ pub async fn update_project(
     .await
     .unwrap();
 
-    Redirect::to("/admin/dashboard")
+    Redirect::to("/admin/dashboard").into_response()
 }
 
 pub async fn delete_project(
     State(pool): State<PgPool>,
     Path(id): Path<Uuid>,
+    session: Session,
+    Form(form): Form<DeleteForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     sqlx::query("DELETE FROM projects WHERE id = $1")
         .bind(id)
         .execute(&pool)
         .await
         .unwrap();
 
-    Redirect::to("/admin/dashboard")
+    Redirect::to("/admin/dashboard").into_response()
 }
 
 // --- Block CRUD ---
@@ -111,6 +153,7 @@ pub async fn delete_project(
 pub async fn project_blocks(
     State(pool): State<PgPool>,
     Path(project_id): Path<Uuid>,
+    session: Session,
 ) -> impl IntoResponse {
     // Fetch project title
     let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = $1")
@@ -127,10 +170,12 @@ pub async fn project_blocks(
     .await
     .unwrap(); 
 
+    let csrf_token = get_or_create_csrf_token(&session).await;
     ProjectBlocksTemplate {
         project_id,
         project_title: project.title,
         blocks,
+        authenticity_token: csrf_token,
     }
 }
 
@@ -142,14 +187,17 @@ pub struct NewBlockQuery {
 
 pub async fn new_block(
     Path(project_id): Path<Uuid>,
+    session: Session,
     Query(query): Query<NewBlockQuery>,
 ) -> impl IntoResponse {
+    let csrf_token = get_or_create_csrf_token(&session).await;
     BlockFormTemplate {
         project_id,
         block_id: None,
         block_type: query.block_type,
         sort_order: 0,
         content: String::new(),
+        authenticity_token: csrf_token,
     }
 }
 
@@ -157,15 +205,20 @@ pub async fn new_block(
 pub struct BlockForm {
     pub block_type: String,
     pub sort_order: i32,
-    pub content: String, // For Text/Video: string. For Gallery/Audio/File: JSON string of items.
+    pub content: String,
+    pub authenticity_token: String,
 }
 
 pub async fn create_block(
     State(pool): State<PgPool>,
     Path(project_id): Path<Uuid>,
     headers: HeaderMap,
+    session: Session,
     Form(form): Form<BlockForm>,
 ) -> Response {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     // Debug logging
     println!("=== CREATE BLOCK DEBUG ===");
     println!("Block type: {}", form.block_type);
@@ -189,7 +242,9 @@ pub async fn create_block(
     // Check if this is an HTMX request
     if headers.get("hx-request").is_some() {
         // Return the blocks list HTML for HTMX to swap
-        render_blocks_list(pool, project_id).await.into_response()
+        // We reuse recent token. Ideally for HTMX we might want a new one if rotated.
+        let csrf_token = get_or_create_csrf_token(&session).await;
+        render_blocks_list(pool, project_id, &csrf_token).await.into_response()
     } else {
         // Regular form submission, redirect
         Redirect::to(&format!("/admin/projects/{}/blocks", project_id)).into_response()
@@ -199,6 +254,7 @@ pub async fn create_block(
 pub async fn edit_block(
     State(pool): State<PgPool>,
     Path(block_id): Path<Uuid>,
+    session: Session,
 ) -> impl IntoResponse {
     let block = sqlx::query_as::<_, ContentBlock>(
         "SELECT * FROM content_blocks WHERE id = $1"
@@ -216,12 +272,14 @@ pub async fn edit_block(
         BlockContent::File(items) => (serde_json::to_string(&items).unwrap_or_default(), String::new()),
     };
 
+    let csrf_token = get_or_create_csrf_token(&session).await;
     BlockFormTemplate {
         project_id: block.project_id,
         block_id: Some(block.id),
         block_type: block.block_type,
         sort_order: block.sort_order,
         content: content_str,
+        authenticity_token: csrf_token,
     }
 }
 
@@ -229,8 +287,12 @@ pub async fn update_block(
     State(pool): State<PgPool>,
     Path(block_id): Path<Uuid>,
     headers: HeaderMap,
+    session: Session,
     Form(form): Form<BlockForm>,
 ) -> Response {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     // Fetch block to get project_id
     let block = sqlx::query_as::<_, ContentBlock>(
         "SELECT * FROM content_blocks WHERE id = $1"
@@ -255,7 +317,9 @@ pub async fn update_block(
     // Check if this is an HTMX request
     if headers.get("hx-request").is_some() {
         // Return the blocks list HTML for HTMX to swap
-        render_blocks_list(pool, block.project_id).await.into_response()
+        // Return the blocks list HTML for HTMX to swap
+        let csrf_token = get_or_create_csrf_token(&session).await;
+        render_blocks_list(pool, block.project_id, &csrf_token).await.into_response()
     } else {
         // Regular form submission, redirect
         Redirect::to(&format!("/admin/projects/{}/blocks", block.project_id)).into_response()
@@ -265,7 +329,12 @@ pub async fn update_block(
 pub async fn delete_block(
     State(pool): State<PgPool>,
     Path(block_id): Path<Uuid>,
+    session: Session,
+    Form(form): Form<DeleteForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     let block = sqlx::query_as::<_, ContentBlock>(
         "SELECT * FROM content_blocks WHERE id = $1"
     )
@@ -280,12 +349,15 @@ pub async fn delete_block(
         .await
         .unwrap();
 
-    Redirect::to(&format!("/admin/projects/{}/blocks", block.project_id))
+    Redirect::to(&format!("/admin/projects/{}/blocks", block.project_id)).into_response()
 }
 
 // --- Settings ---
 
-pub async fn settings(State(pool): State<PgPool>) -> impl IntoResponse {
+pub async fn settings(
+    State(pool): State<PgPool>,
+    session: Session,
+) -> impl IntoResponse {
     // Assuming single user system, fetch the first user
     let user = sqlx::query_as::<_, User>("SELECT * FROM users LIMIT 1")
         .fetch_one(&pool)
@@ -294,19 +366,28 @@ pub async fn settings(State(pool): State<PgPool>) -> impl IntoResponse {
 
     let current_username = user.map(|u| u.username).unwrap_or_default();
 
-    SettingsTemplate { current_username }
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    SettingsTemplate { 
+        current_username,
+        authenticity_token: csrf_token,
+    }
 }
 
 #[derive(Deserialize)]
 pub struct CredentialsForm {
     pub username: String,
     pub password: String,
+    pub authenticity_token: String,
 }
 
 pub async fn update_credentials(
     State(pool): State<PgPool>,
+    session: Session,
     Form(payload): Form<CredentialsForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &payload.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     // Hash password
     let password_hash = crate::models::hash_password(&payload.password).unwrap();
 
@@ -338,23 +419,31 @@ pub async fn update_credentials(
         .unwrap();
     }
 
-    Redirect::to("/admin/dashboard")
+    Redirect::to("/admin/dashboard").into_response()
 }
 
 // --- Pages ---
 
-pub async fn pages_list(State(pool): State<PgPool>) -> impl IntoResponse {
+pub async fn pages_list(
+    State(pool): State<PgPool>,
+    session: Session,
+) -> impl IntoResponse {
     let pages = sqlx::query_as::<_, crate::models::Page>("SELECT * FROM pages ORDER BY slug ASC")
         .fetch_all(&pool)
         .await
         .unwrap_or_default();
 
-    crate::templates::PagesListTemplate { pages }
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    crate::templates::PagesListTemplate { 
+        pages,
+        authenticity_token: csrf_token,
+    }
 }
 
 pub async fn edit_page(
     State(pool): State<PgPool>,
     Path(slug): Path<String>,
+    session: Session,
 ) -> impl IntoResponse {
     let page = sqlx::query_as::<_, crate::models::Page>("SELECT * FROM pages WHERE slug = $1")
         .bind(slug)
@@ -362,20 +451,29 @@ pub async fn edit_page(
         .await
         .unwrap();
 
-    crate::templates::PageFormTemplate { page }
+    let csrf_token = get_or_create_csrf_token(&session).await;
+    crate::templates::PageFormTemplate { 
+        page,
+        authenticity_token: csrf_token,
+    }
 }
 
 #[derive(Deserialize)]
 pub struct PageForm {
     pub title: String,
     pub content: String,
+    pub authenticity_token: String,
 }
 
 pub async fn update_page(
     State(pool): State<PgPool>,
     Path(slug): Path<String>,
+    session: Session,
     Form(form): Form<PageForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     sqlx::query("UPDATE pages SET title = $1, content = $2, updated_at = NOW() WHERE slug = $3")
         .bind(form.title)
         .bind(form.content)
@@ -383,7 +481,7 @@ pub async fn update_page(
         .execute(&pool)
         .await
         .unwrap();
-    Redirect::to("/admin/pages")
+    Redirect::to("/admin/pages").into_response()
 }
 
 // --- Helpers ---
@@ -417,7 +515,7 @@ fn form_to_block_content(block_type: &str, content: &str) -> BlockContent {
 }
 
 // Helper function to render the blocks list for HTMX responses
-async fn render_blocks_list(pool: PgPool, project_id: Uuid) -> impl IntoResponse {
+async fn render_blocks_list(pool: PgPool, project_id: Uuid, csrf_token: &str) -> impl IntoResponse {
     let blocks = sqlx::query_as::<_, ContentBlock>(
         "SELECT * FROM content_blocks WHERE project_id = $1 ORDER BY sort_order ASC"
     )
@@ -457,6 +555,7 @@ async fn render_blocks_list(pool: PgPool, project_id: Uuid) -> impl IntoResponse
                     <span class="material-icons">edit</span>
                 </a>
                 <form method="POST" action="/admin/blocks/delete/{}" class="inline-form confirm-delete">
+                    <input type="hidden" name="authenticity_token" value="{}">
                     <button type="submit" class="icon-btn delete" title="Delete">
                         <span class="material-icons">delete</span>
                     </button>
@@ -468,7 +567,8 @@ async fn render_blocks_list(pool: PgPool, project_id: Uuid) -> impl IntoResponse
             block.block_type,
             preview,
             block.id,
-            block.id
+            block.id,
+            csrf_token
         ));
     }
 
@@ -480,7 +580,12 @@ async fn render_blocks_list(pool: PgPool, project_id: Uuid) -> impl IntoResponse
 
 pub async fn trigger_deploy(
     State(_pool): State<PgPool>,
+    session: Session,
+    Form(form): Form<DeployForm>,
 ) -> impl IntoResponse {
+    if !verify_csrf_token(&session, &form.authenticity_token).await {
+        return (axum::http::StatusCode::FORBIDDEN, "Invalid CSRF Token").into_response();
+    }
     let github_token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
     let owner = std::env::var("GITHUB_OWNER").unwrap_or_default();
     let repo = std::env::var("GITHUB_REPO").unwrap_or_default();

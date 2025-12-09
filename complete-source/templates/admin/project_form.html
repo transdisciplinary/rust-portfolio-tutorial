@@ -6,6 +6,7 @@
 
     <form action="{% if let Some(p) = project %}/admin/projects/edit/{{ p.id }}{% else %}/admin/projects{% endif %}"
         method="POST" class="form-stack">
+        <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
 
         <div class="form-group">
             <label for="title">Title</label>

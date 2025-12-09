@@ -19,21 +19,5 @@
     </ul>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const labels = document.querySelectorAll('.cards label');
-
-        labels.forEach(label => {
-            label.addEventListener('click', function (e) {
-                const radio = document.getElementById(this.getAttribute('for'));
-
-                // If already checked, uncheck it
-                if (radio.checked) {
-                    e.preventDefault();
-                    radio.checked = false;
-                }
-            });
-        });
-    });
-</script>
+<script src="/static/js/timeline.js"></script>
 {% endblock %}

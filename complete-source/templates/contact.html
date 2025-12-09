@@ -15,17 +15,7 @@
         {{ page.content|safe }}
     </div>
 
-    <script>
-        document.getElementById('email-link').addEventListener('click', function (e) {
-            e.preventDefault();
-            window.showConfirm(
-                'Contact',
-                'Open your email client?',
-                () => window.location.href = 'mailto:contact@example.com',
-                'Open'
-            );
-        });
-    </script>
+    <script src="/static/js/contact.js"></script>
 </div>
 </div>
 {% endblock %}

@@ -5,6 +5,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::env;
 use std::net::SocketAddr;
 
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -36,7 +37,7 @@ async fn main() {
 
     let is_production = env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".to_string()) == "production";
     
-    let app = create_router(state, is_production);
+    let app = create_router(state, is_production).await;
 
     let port = env::var("PORT").unwrap_or_else(|_| "8000".to_string()).parse::<u16>().unwrap_or(8000);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

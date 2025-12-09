@@ -8,6 +8,8 @@
         <form id="block-form" method="POST" hx-boost="false"
             action="{% if block_id.is_some() %}/admin/blocks/{{ block_id.unwrap() }}{% else %}/admin/projects/{{ project_id }}/blocks{% endif %}"
             class="admin-form" data-block-type="{{ block_type }}">
+            <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
+            <input type="hidden" id="csrf_token" value="{{ authenticity_token }}">
 
             <div class="form-group">
                 <label class="form-label">Block Type</label>
@@ -63,44 +65,6 @@
 <!-- Material Icons -->
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-<script>
-    // Just trigger the global init function
-    if (window.initBlockForm) {
-        window.initBlockForm();
-    } else {
-        // Fallback if base.html script hasn't run yet (unlikely but possible)
-        document.addEventListener('DOMContentLoaded', () => {
-            if (window.initBlockForm) window.initBlockForm();
-        });
-    }
-</script>
-
-<style>
-    .disabled-input {
-        opacity: 0.7;
-        cursor: not-allowed;
-    }
-
-    .hidden {
-        display: none;
-    }
-
-    .upload-icon {
-        font-size: 3rem;
-        color: var(--clr-text);
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .file-icon {
-        font-size: 2rem;
-        color: var(--clr-text);
-    }
-
-    .file-name {
-        word-break: break-all;
-        font-size: 0.8rem;
-        color: var(--clr-text-muted);
-    }
-</style>
+<script src="/static/js/admin-blocks.js"></script>
+<link rel="stylesheet" href="/static/css/admin.css">
 {% endblock %}

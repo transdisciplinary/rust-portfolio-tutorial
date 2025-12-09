@@ -6,38 +6,14 @@
         <h1>Dashboard</h1>
         <div class="header-actions">
             <form id="deploy-form" action="/admin/deploy" method="POST">
-                <button type="submit" class="btn btn-primary">Deploy Live</button>
+                <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
+                <button type="submit" class="btn">Deploy Live</button>
             </form>
             <a href="/admin/logout" class="btn">Logout</a>
         </div>
     </header>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('deploy') === 'success') {
-            document.addEventListener('DOMContentLoaded', () => {
-                window.showAlert('Success', 'Deployment triggered successfully!');
-            });
-            // clear param
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
 
-        // Handle Deploy Confirmation
-        document.addEventListener('DOMContentLoaded', () => {
-            const deployForm = document.getElementById('deploy-form');
-            if (deployForm) {
-                deployForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    window.showConfirm(
-                        'Deploy Live?',
-                        'This will trigger a GitHub Action to build and deploy your static site. It may take a few minutes.',
-                        () => deployForm.submit(),
-                        'Deploy'
-                    );
-                });
-            }
-        });
-    </script>
 
 
     <div class="admin-grid">
@@ -72,6 +48,7 @@
                         <a href="/admin/projects/edit/{{ project.id }}" class="button">Edit</a>
                         <form action="/admin/projects/delete/{{ project.id }}" method="POST"
                             class="confirm-delete inline-form">
+                            <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
                             <button type="submit" class="icon-btn delete">
                                 <span class="material-icons">delete</span>
                             </button>

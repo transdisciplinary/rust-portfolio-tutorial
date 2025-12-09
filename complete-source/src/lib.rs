@@ -2,6 +2,7 @@ pub mod models;
 pub mod routes;
 pub mod templates;
 pub mod upload;
+pub mod csrf;
 
 #[cfg(test)]
 mod test_json;
@@ -16,7 +17,9 @@ use axum::{
     body::Body,
 };
 use sqlx::PgPool;
-use tower_sessions::{Expiry, MemoryStore, Session, SessionManagerLayer};
+use tower_sessions::{Expiry, Session, SessionManagerLayer};
+use tower_sessions_sqlx_store::PostgresStore;
+use tower_http::set_header::SetResponseHeaderLayer;
 use upload::CloudinaryConfig;
 use include_dir::{include_dir, Dir};
 
@@ -40,12 +43,17 @@ impl axum::extract::FromRef<AppState> for CloudinaryConfig {
     }
 }
 
-pub fn create_router(state: AppState, is_production: bool) -> Router {
-    let session_store = MemoryStore::default();
+
+
+pub async fn create_router(state: AppState, is_production: bool) -> Router {
+    let session_store = PostgresStore::new(state.pool.clone());
+    session_store.migrate().await.expect("Failed to run session migration");
     
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(is_production)
         .with_expiry(Expiry::OnInactivity(time::Duration::hours(24)));
+
+
 
     Router::new()
         .route("/", get(routes::public::index))
@@ -57,8 +65,20 @@ pub fn create_router(state: AppState, is_production: bool) -> Router {
         // Protected Admin Routes
         .nest("/admin", admin_routes())
         .route("/static/{*path}", get(static_handler))
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(session_layer)
+        // Security Headers
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_FRAME_OPTIONS,
+            header::HeaderValue::from_static("DENY"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::X_CONTENT_TYPE_OPTIONS,
+            header::HeaderValue::from_static("nosniff"),
+        ))
+        .layer(SetResponseHeaderLayer::overriding(
+            header::CONTENT_SECURITY_POLICY,
+            header::HeaderValue::from_static("default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.quilljs.com https://*.mux.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.quilljs.com; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com https://fonts.cdnfonts.com; connect-src 'self' https://*.mux.com; media-src 'self' https://stream.mux.com blob:; frame-src 'self' https://www.youtube.com"),
+        ))
         .with_state(state)
 }
 

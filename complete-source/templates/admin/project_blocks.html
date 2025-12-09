@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="admin-container">
+    <input type="hidden" id="csrf_token" value="{{ authenticity_token }}">
     <div class="header-actions">
         <h1 class="page-title">Blocks for: {{ project_title }}</h1>
     </div>
@@ -49,6 +50,7 @@
                     <span class="material-icons">edit</span>
                 </a>
                 <form method="POST" action="/admin/blocks/delete/{{ block.id }}" class="inline-form confirm-delete">
+                    <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
                     <button type="submit" class="icon-btn delete" title="Delete">
                         <span class="material-icons">delete</span>
                     </button>
@@ -65,51 +67,5 @@
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const list = document.getElementById('blocks-list');
-        const saveBtn = document.getElementById('save-order-btn');
-
-        const sortable = new Sortable(list, {
-            handle: '.drag-handle',
-            animation: 150,
-            onUpdate: function () {
-                saveBtn.style.display = 'inline-block';
-            }
-        });
-
-        saveBtn.addEventListener('click', async function () {
-            const updates = [];
-            const items = list.querySelectorAll('.block-item');
-
-            items.forEach((item, index) => {
-                updates.push({
-                    id: item.dataset.id,
-                    sort_order: index
-                });
-            });
-
-            try {
-                const resp = await fetch('/admin/api/reorder', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ updates })
-                });
-
-                if (resp.ok) {
-                    saveBtn.style.display = 'none';
-                    saveBtn.style.display = 'none';
-                    window.showAlert('Success', 'Order saved!');
-                } else {
-                    window.showAlert('Error', 'Failed to save order.');
-                }
-            } catch (e) {
-                console.error(e);
-                window.showAlert('Error', 'Error saving order.');
-            }
-        });
-    });
-</script>
+<script src="/static/js/admin-blocks.js"></script>
 {% endblock %}

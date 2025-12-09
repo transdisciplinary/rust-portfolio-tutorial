@@ -21,6 +21,7 @@
             </div>
 
             <form action="/admin/settings/update" method="POST" class="admin-form">
+                <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
                 <div class="form-group">
                     <label for="username">New Username</label>
                     <input type="text" id="username" name="username" required value="{{ current_username }}">

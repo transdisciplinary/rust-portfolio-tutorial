@@ -8,7 +8,8 @@
     <div class="error-message">{{ err }}</div>
     {% endif %}
 
-    <form action="/admin/login" method="POST" class="form-stack">
+    <form class="login-form" method="POST" action="/admin/login">
+        <input type="hidden" name="authenticity_token" value="{{ authenticity_token }}">
         <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" required class="form-input">
