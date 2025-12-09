@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="header-actions">
+        <h1 class="page-title">Blocks for: {{ project_title }}</h1>
+    </div>
+
+    <div class="blocks-grid">
+        <!-- Add New Block Cards -->
+        <a href="/admin/projects/{{ project_id }}/blocks/new?type=Text" class="add-block-card">
+            <span class="material-icons">description</span>
+            <span>Add Text</span>
+        </a>
+        <a href="/admin/projects/{{ project_id }}/blocks/new?type=Gallery" class="add-block-card">
+            <span class="material-icons">collections</span>
+            <span>Add Gallery</span>
+        </a>
+        <a href="/admin/projects/{{ project_id }}/blocks/new?type=Video" class="add-block-card">
+            <span class="material-icons">movie</span>
+            <span>Add Video</span>
+        </a>
+        <a href="/admin/projects/{{ project_id }}/blocks/new?type=Audio" class="add-block-card">
+            <span class="material-icons">audiotrack</span>
+            <span>Add Audio</span>
+        </a>
+        <a href="/admin/projects/{{ project_id }}/blocks/new?type=File" class="add-block-card">
+            <span class="material-icons">insert_drive_file</span>
+            <span>Add File</span>
+        </a>
+    </div>
+
+    <div id="blocks-list" class="blocks-list">
+        {% for block in blocks %}
+        <div class="block-item" data-id="{{ block.id }}">
+            <div class="drag-handle material-icons">drag_indicator</div>
+            <div class="block-info">
+                <span class="block-type">{{ block.block_type }}</span>
+                <span class="block-preview">
+                    {% if block.block_type == "Text" %}
+                    {{ block.content.0.as_text().unwrap_or("Text Content")|truncate(50) }}
+                    {% else %}
+                    {{ block.block_type }} Content
+                    {% endif %}
+                </span>
+            </div>
+            <div class="block-actions">
+                <a href="/admin/blocks/{{ block.id }}" class="icon-btn" title="Edit">
+                    <span class="material-icons">edit</span>
+                </a>
+                <form method="POST" action="/admin/blocks/delete/{{ block.id }}" class="inline-form confirm-delete">
+                    <button type="submit" class="icon-btn delete" title="Delete">
+                        <span class="material-icons">delete</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="actions">
+        <a href="/admin/dashboard" class="btn">Back to Dashboard</a>
+        <button id="save-order-btn" class="btn" style="display: none;">Save Order</button>
+    </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const list = document.getElementById('blocks-list');
+        const saveBtn = document.getElementById('save-order-btn');
+
+        const sortable = new Sortable(list, {
+            handle: '.drag-handle',
+            animation: 150,
+            onUpdate: function () {
+                saveBtn.style.display = 'inline-block';
+            }
+        });
+
+        saveBtn.addEventListener('click', async function () {
+            const updates = [];
+            const items = list.querySelectorAll('.block-item');
+
+            items.forEach((item, index) => {
+                updates.push({
+                    id: item.dataset.id,
+                    sort_order: index
+                });
+            });
+
+            try {
+                const resp = await fetch('/admin/api/reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ updates })
+                });
+
+                if (resp.ok) {
+                    saveBtn.style.display = 'none';
+                    saveBtn.style.display = 'none';
+                    window.showAlert('Success', 'Order saved!');
+                } else {
+                    window.showAlert('Error', 'Failed to save order.');
+                }
+            } catch (e) {
+                console.error(e);
+                window.showAlert('Error', 'Error saving order.');
+            }
+        });
+    });
+</script>
+{% endblock %}

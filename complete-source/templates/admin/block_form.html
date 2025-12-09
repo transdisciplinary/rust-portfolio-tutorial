@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="form-container wide">
+        <h1 class="form-title">{% if block_id.is_some() %}Edit Block{% else %}New Block{% endif %}</h1>
+
+        <form id="block-form" method="POST" hx-boost="false"
+            action="{% if block_id.is_some() %}/admin/blocks/{{ block_id.unwrap() }}{% else %}/admin/projects/{{ project_id }}/blocks{% endif %}"
+            class="admin-form" data-block-type="{{ block_type }}">
+
+            <div class="form-group">
+                <label class="form-label">Block Type</label>
+                <input type="text" name="block_type" id="block_type" value="{{ block_type }}" readonly
+                    class="form-input disabled-input">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Sort Order</label>
+                <input type="number" name="sort_order" value="{{ sort_order }}" required class="form-input">
+            </div>
+
+            <!-- Hidden Content Input (Populated by JS) -->
+            <input type="hidden" name="content" id="content-input" value="{{ content }}">
+
+            <!-- Dynamic Fields -->
+            <div id="dynamic-fields">
+                <!-- Text Editor -->
+                <div id="text-editor-group" class="form-group hidden">
+                    <label class="form-label">Content</label>
+                    <div id="quill-editor"></div>
+                </div>
+
+                <!-- Video URL -->
+                <div id="video-input-group" class="form-group hidden">
+                    <label class="form-label">Video URL (YouTube/Vimeo)</label>
+                    <input type="text" id="video-url-input" class="form-input"
+                        placeholder="https://youtube.com/watch?v=...">
+                </div>
+
+                <!-- File Uploader (Gallery, Audio, File) -->
+                <div id="file-uploader-group" class="form-group hidden">
+                    <label class="form-label">Upload Files</label>
+                    <div class="drop-zone" id="drop-zone">
+                        <span class="material-icons upload-icon">cloud_upload</span>
+                        <p>Drag & drop files here or click to upload</p>
+                        <input type="file" id="file-input" multiple class="hidden"
+                            accept="image/*,audio/*,application/pdf,.m4a,.aac">
+                    </div>
+                    <div id="upload-progress-container" class="progress-container"></div>
+                    <div id="file-list" class="file-list"></div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <a href="/admin/projects/{{ project_id }}/blocks" class="btn">Cancel</a>
+                <button type="submit" id="save-btn" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+<script>
+    // Just trigger the global init function
+    if (window.initBlockForm) {
+        window.initBlockForm();
+    } else {
+        // Fallback if base.html script hasn't run yet (unlikely but possible)
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.initBlockForm) window.initBlockForm();
+        });
+    }
+</script>
+
+<style>
+    .disabled-input {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .upload-icon {
+        font-size: 3rem;
+        color: var(--clr-text);
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .file-icon {
+        font-size: 2rem;
+        color: var(--clr-text);
+    }
+
+    .file-name {
+        word-break: break-all;
+        font-size: 0.8rem;
+        color: var(--clr-text-muted);
+    }
+</style>
+{% endblock %}

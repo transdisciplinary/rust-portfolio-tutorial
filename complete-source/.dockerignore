@@ -1,0 +1,7 @@
+target/
+.git/
+.env
+Secrets.toml
+Dockerfile
+.dockerignore
+docs/

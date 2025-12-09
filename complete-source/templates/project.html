@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.title }} | Stef Meul{% endblock %}
+{% block description %}{{ project.description.as_deref().unwrap_or("Project details") }}{% endblock %}
+{% block og_title %}{{ project.title }}{% endblock %}
+{% block og_description %}{{ project.description.as_deref().unwrap_or("Project details") }}{% endblock %}
+{% block og_image %}{{ project.thumbnail_url.as_deref().unwrap_or("/static/images/og-default.jpg") }}{% endblock %}
+
+{% block footer %}{{ footer|safe }}{% endblock %}
+
+{% block content %}
+<div class="project-container">
+    <header class="project-header">
+        <h1 class="project-title">{{ project.title }}</h1>
+        <div class="project-meta">
+            <span class="date">{{ project.start_date.day() }} {{ project.start_date.month() }} {{
+                project.start_date.year() }}</span>
+            {% match project.end_date %}
+            {% when Some(end) %}
+            <span class="date-separator"> until </span>
+            <span class="date">{{ end.day() }} {{ end.month() }} {{ end.year() }}</span>
+            {% when None %}
+            {% endmatch %}
+        </div>
+        {% match project.description %}
+        {% when Some(desc) %}
+        <p class="description">{{ desc }}</p>
+        {% when None %}
+        {% endmatch %}
+    </header>
+
+    <div class="blocks-container">
+        {% for block in blocks %}
+        <div class="content-block block-{{ block.block_type|lower }}">
+            {% match block.content.0 %}
+            {% when BlockContent::Text with (text) %}
+            <div class="text-content">
+                {{ text|safe }}
+            </div>
+
+            {% when BlockContent::Gallery with (images) %}
+            <div class="gallery-grid">
+                {% for image in images %}
+                <div class="gallery-item">
+                    <img src="{{ image }}" alt="Gallery Image" loading="lazy">
+                </div>
+                {% endfor %}
+            </div>
+
+            {% when BlockContent::Video with (url) %}
+            <div class="video-wrapper" data-url="{{ url }}">
+                <!-- Video player injected by JS -->
+            </div>
+
+            {% when BlockContent::Audio with (items) %}
+            <div class="audio-playlist">
+                {% for (url, title) in items %}
+                <div class="audio-track">
+                    <div class="unified-player" data-url="{{ url }}">
+                        <button class="play-pause-btn">
+                            <span class="material-icons">play_arrow</span>
+                        </button>
+
+                        <div class="track-info">
+                            <span class="track-title">{{ title }}</span>
+                            <div class="progress-container">
+                                <div class="progress-bar"></div>
+                            </div>
+                        </div>
+
+                        <div class="time-display">0:00 / 0:00</div>
+
+                        <div class="volume-control">
+                            <button class="mute-btn">
+                                <span class="material-icons">volume_up</span>
+                            </button>
+                            <div class="volume-slider-container">
+                                <div class="volume-slider">
+                                    <div class="volume-level" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="player-backend" style="display:none;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% when BlockContent::File with (items) %}
+            <div class="file-list">
+                {% for (url, description) in items %}
+                <a href="{{ url }}" class="file-link" target="_blank" download>
+                    <span class="text">{{ description }}</span>
+                    <span class="download-icon material-icons">download</span>
+                </a>
+                {% endfor %}
+            </div>
+            {% endmatch %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Project Navigation -->
+    <nav class="project-nav">
+        {% match prev_project %}
+        {% when Some(prev) %}
+        <a href="/project/{{ prev.slug }}" class="nav-btn nav-prev" title="Previous Project">
+            <span class="material-icons">arrow_back</span>
+        </a>
+        {% when None %}
+        <a href="/" class="nav-btn nav-home" title="Back to Timeline">
+            <span class="material-icons">home</span>
+        </a>
+        {% endmatch %}
+
+        {% match next_project %}
+        {% when Some(next) %}
+        <a href="/project/{{ next.slug }}" class="nav-btn nav-next" title="Next Project">
+            <span class="material-icons">arrow_forward</span>
+        </a>
+        {% when None %}
+        <a href="/" class="nav-btn nav-home" title="Back to Timeline">
+            <span class="material-icons">home</span>
+        </a>
+        {% endmatch %}
+    </nav>
+</div>
+
+<!-- Lightbox Overlay -->
+<div id="image-lightbox" class="lightbox-overlay">
+    <img id="lightbox-img" src="" alt="Enlarged view">
+</div>
+
+<script>
+    function initLightbox() {
+        const lightbox = document.getElementById('image-lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+
+        // Guard clause: if lightbox elements aren't found, stop.
+        if (!lightbox || !lightboxImg) return;
+
+        // Check if already initialized to prevent duplicate listeners
+        if (lightbox.dataset.initialized === 'true') return;
+        lightbox.dataset.initialized = 'true';
+
+        const images = document.querySelectorAll('.gallery-item img');
+
+        images.forEach(img => {
+            img.style.cursor = 'zoom-in';
+            img.addEventListener('click', (e) => {
+                e.stopPropagation();
+                lightboxImg.src = img.src;
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        // Close handler
+        const closeLightbox = () => {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                lightboxImg.src = '';
+            }, 300);
+        };
+
+        // Click outside to close
+        lightbox.addEventListener('click', (e) => {
+            if (e.target !== lightboxImg) {
+                closeLightbox();
+            }
+        });
+
+        // Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+                closeLightbox();
+            }
+        });
+    }
+
+    // Initialize on initial load
+    document.addEventListener('DOMContentLoaded', initLightbox);
+
+    // Initialize after HTMX navigation
+    document.addEventListener('htmx:afterSwap', initLightbox);
+
+    // Fallback: Try immediately in case DOM is already ready (e.g. fast cache)
+    initLightbox();
+</script>
+
+{% endblock %}

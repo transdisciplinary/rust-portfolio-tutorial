@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-container">
+    <h1 class="form-title">{% if project.is_some() %}Edit Project{% else %}New Project{% endif %}</h1>
+
+    <form action="{% if let Some(p) = project %}/admin/projects/edit/{{ p.id }}{% else %}/admin/projects{% endif %}"
+        method="POST" class="form-stack">
+
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" value="{% if let Some(p) = project %}{{ p.title }}{% endif %}"
+                required class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label for="slug">Slug (URL)</label>
+            <input type="text" id="slug" name="slug" value="{% if let Some(p) = project %}{{ p.slug }}{% endif %}"
+                required class="form-input">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4"
+                class="form-textarea">{% if let Some(p) = project %}{% if let Some(desc) = p.description %}{{ desc }}{% endif %}{% endif %}</textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-col">
+                <label for="start_date">Start Date</label>
+                <input type="date" id="start_date" name="start_date"
+                    value="{% if let Some(p) = project %}{{ p.start_date }}{% endif %}" required class="form-input">
+            </div>
+            <div class="form-col">
+                <label for="end_date">End Date</label>
+                <input type="date" id="end_date" name="end_date"
+                    value="{% if let Some(p) = project %}{% if let Some(end) = p.end_date %}{{ end }}{% endif %}{% endif %}"
+                    class="form-input">
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="/admin/dashboard" class="btn flex-1">Cancel</a>
+            <button type="submit" class="btn flex-1">Save Project</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

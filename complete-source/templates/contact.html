@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Contact | Stef Meul{% endblock %}
+{% block description %}Get in touch.{% endblock %}
+
+{% block footer %}{{ footer|safe }}{% endblock %}
+
+{% block content %}
+<div class="project-container">
+    <header class="project-header">
+        <h1>Contact</h1>
+    </header>
+
+    <div class="text-content" style="text-align: center;">
+        {{ page.content|safe }}
+    </div>
+
+    <script>
+        document.getElementById('email-link').addEventListener('click', function (e) {
+            e.preventDefault();
+            window.showConfirm(
+                'Contact',
+                'Open your email client?',
+                () => window.location.href = 'mailto:contact@example.com',
+                'Open'
+            );
+        });
+    </script>
+</div>
+</div>
+{% endblock %}

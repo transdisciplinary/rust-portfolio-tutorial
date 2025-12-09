@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}About | Stef Meul{% endblock %}
+{% block description %}About the artist.{% endblock %}
+
+{% block footer %}{{ footer|safe }}{% endblock %}
+
+{% block content %}
+<div class="project-container">
+    <header class="project-header">
+        <h1>About</h1>
+    </header>
+
+    <div class="text-content">
+        {{ page.content|safe }}
+    </div>
+</div>
+{% endblock %}

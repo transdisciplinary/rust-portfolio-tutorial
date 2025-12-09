@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block footer %}{{ footer|safe }}{% endblock %}
+
+{% block content %}
+<div class="cards-container">
+    <ul class="cards" style="--items: {{ grouped_projects.len() }};">
+        {% for (year, projects) in grouped_projects %}
+        <li style="--i: {{ loop.index0 }};">
+            <input type="radio" id="item-{{ loop.index0 }}" name="gallery-item">
+            <label for="item-{{ loop.index0 }}">{{ year }}</label>
+            <div class="year-projects">
+                {% for project in projects %}
+                <h2><a href="/project/{{ project.slug }}">{{ project.title }}</a></h2>
+                {% endfor %}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const labels = document.querySelectorAll('.cards label');
+
+        labels.forEach(label => {
+            label.addEventListener('click', function (e) {
+                const radio = document.getElementById(this.getAttribute('for'));
+
+                // If already checked, uncheck it
+                if (radio.checked) {
+                    e.preventDefault();
+                    radio.checked = false;
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

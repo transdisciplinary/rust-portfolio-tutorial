@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="form-container wide">
+    <header class="form-title">
+        <h1>Edit Page: {{ page.title }}</h1>
+        <a href="/admin/pages" class="btn">Back to Pages</a>
+    </header>
+
+    <form action="/admin/pages/update/{{ page.slug }}" method="POST" class="form-stack">
+        <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="title" value="{{ page.title }}" class="form-input" required>
+        </div>
+
+        <div class="form-group">
+            <label for="content">Content (HTML)</label>
+            <textarea id="content" name="content" rows="20" class="form-textarea" required>{{ page.content }}</textarea>
+            <p class="item-meta" style="margin-top: 0.5rem;">You can use HTML tags. For footer, keep it simple with
+                &lt;p&gt; tags.</p>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="/admin/pages" class="btn">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

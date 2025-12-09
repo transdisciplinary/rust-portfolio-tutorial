@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stef Meul - Artist Portfolio{% endblock %}</title>
+    <meta name="description"
+        content="{% block description %}Official portfolio of Stef Meul. Explore creative works, projects, and biography at stefmeul.net.{% endblock %}">
+    <meta name="keywords" content="Stef Meul, stefmeul.net, Artist, Portfolio, Creative, Art">
+    <link rel="canonical" href="https://stefmeul.net">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="apple-touch-icon" href="/static/favicon.png">
+    <meta property="og:title" content="{% block og_title %}Stef Meul - Artist Portfolio{% endblock %}">
+    <meta property="og:description"
+        content="{% block og_description %}Official portfolio of Stef Meul. Explore creative works, projects, and biography.{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}/static/images/og-default.jpg{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://stefmeul.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Outfit:wght@100..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css?v=3">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Three.js Background -->
+    <script type="module" src="/static/js/background.js"></script>
+    <script src="/static/js/unified-player.js"></script>
+    <script src="/static/js/video-loader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script type="text/javascript"
+        src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <!-- Quill Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
+    <!-- Global App Logic -->
+    <script>
+        console.log("Base script loaded");
+
+        // Global initialization function for Block Form
+        window.initBlockForm = function () {
+            console.log("initBlockForm called");
+            const form = document.getElementById('block-form');
+            if (!form) {
+                console.log("Block form not found");
+                return;
+            }
+
+            // Prevent double initialization on the same element
+            if (form.dataset.initialized === 'true') {
+                console.log("Block form already initialized");
+                return;
+            }
+            form.dataset.initialized = 'true';
+
+            console.log("Initializing Block Form...");
+
+            // Get data from attributes
+            const blockType = form.dataset.blockType;
+            const contentInput = document.getElementById('content-input');
+            const initialContent = contentInput ? contentInput.value : '';
+
+            // Elements
+            const textGroup = document.getElementById('text-editor-group');
+            const videoGroup = document.getElementById('video-input-group');
+            const fileGroup = document.getElementById('file-uploader-group');
+            const fileList = document.getElementById('file-list');
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const saveBtn = document.getElementById('save-btn');
+
+            // State
+            let uploadedFiles = [];
+            let isUploading = false;
+
+            // Helper to update save button state
+            function updateSaveBtn() {
+                if (saveBtn) {
+                    saveBtn.disabled = isUploading;
+                    saveBtn.textContent = isUploading ? 'Uploading...' : 'Save Block';
+                    saveBtn.style.opacity = isUploading ? '0.5' : '1';
+                }
+            }
+
+            // --- UI Initialization ---
+            if (blockType === 'Text') {
+                if (textGroup) textGroup.classList.remove('hidden');
+
+                // Clear previous instance if any
+                const editorContainer = document.getElementById('quill-editor');
+                if (editorContainer) {
+                    editorContainer.innerHTML = '';
+
+                    var quill = new Quill('#quill-editor', {
+                        theme: 'snow',
+                        modules: {
+                            toolbar: [
+                                [{ 'header': [1, 2, 3, false] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                ['link', 'blockquote', 'code-block'],
+                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                                ['clean']
+                            ]
+                        }
+                    });
+
+                    // Custom Link Handler
+                    var Link = Quill.import('formats/link');
+                    class CustomLink extends Link {
+                        static create(value) {
+                            let node = super.create(value);
+                            value = this.sanitize(value);
+                            node.setAttribute('href', value);
+                            node.setAttribute('target', '_blank');
+                            return node;
+                        }
+                        static sanitize(url) {
+                            if (!url.match(/^(https?:\/\/|mailto:|tel:)/)) {
+                                if (url.match(/^[\w.-]+\.[\w]{2,}/)) {
+                                    return 'https://' + url;
+                                }
+                            }
+                            return super.sanitize(url);
+                        }
+                    }
+                    Quill.register(CustomLink, true);
+
+                    if (initialContent) {
+                        quill.clipboard.dangerouslyPasteHTML(initialContent);
+                    }
+
+                    quill.on('text-change', function () {
+                        if (contentInput) contentInput.value = quill.root.innerHTML;
+                    });
+                }
+
+            } else if (blockType === 'Video') {
+                if (videoGroup) videoGroup.classList.remove('hidden');
+                const vidInput = document.getElementById('video-url-input');
+                if (vidInput) vidInput.value = initialContent;
+            } else {
+                // Gallery, Audio, File
+                if (fileGroup) fileGroup.classList.remove('hidden');
+                try {
+                    if (initialContent) {
+                        const parsed = JSON.parse(initialContent);
+                        if (blockType === 'Gallery') {
+                            uploadedFiles = parsed.map(url => ({ url, title: '' }));
+                        } else {
+                            uploadedFiles = parsed.map(item => ({ url: item[0], title: item[1] }));
+                        }
+                        renderFileList();
+                    }
+                } catch (e) {
+                    console.error("Error parsing initial content", e);
+                }
+            }
+
+            // --- File Upload Logic ---
+            if (dropZone && fileInput) {
+                dropZone.addEventListener('click', () => fileInput.click());
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('dragover');
+                });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('dragover');
+                    handleFiles(e.dataTransfer.files);
+                });
+                fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+            }
+
+            async function handleFiles(files) {
+                isUploading = true;
+                updateSaveBtn();
+                for (let file of files) {
+                    await uploadFile(file);
+                }
+                isUploading = false;
+                updateSaveBtn();
+            }
+
+            async function uploadFile(file) {
+                // Image Compression Logic
+                if (file.type.startsWith('image/')) {
+                    try {
+                        console.log('Compressing image:', file.name);
+                        const options = {
+                            maxSizeMB: 1,
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true,
+                            fileType: 'image/webp'
+                        };
+                        const compressedBlob = await imageCompression(file, options);
+
+                        // Create new File from Blob with .webp extension
+                        const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+                        file = new File([compressedBlob], newName, {
+                            type: 'image/webp',
+                            lastModified: Date.now()
+                        });
+                        console.log('Compression successful:', file.name, file.size);
+                    } catch (error) {
+                        console.error('Compression failed, using original file:', error);
+                    }
+                }
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const progressDiv = document.createElement('div');
+                progressDiv.className = 'file-item';
+                progressDiv.innerHTML = `<span>Uploading ${file.name}...</span><div class="progress-bar" style="width: 0%"></div>`;
+                const progressContainer = document.getElementById('upload-progress-container');
+                if (progressContainer) progressContainer.appendChild(progressDiv);
+
+                try {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/admin/api/upload', true);
+
+                    xhr.upload.onprogress = (e) => {
+                        if (e.lengthComputable) {
+                            const percent = (e.loaded / e.total) * 100;
+                            progressDiv.querySelector('.progress-bar').style.width = percent + '%';
+                        }
+                    };
+
+                    const promise = new Promise((resolve, reject) => {
+                        xhr.onload = () => {
+                            if (xhr.status === 200) {
+                                const resp = JSON.parse(xhr.responseText);
+                                resolve(resp);
+                            } else {
+                                reject(xhr.responseText);
+                            }
+                        };
+                        xhr.onerror = () => reject("Network error");
+                    });
+
+                    xhr.send(formData);
+                    const result = await promise;
+
+                    uploadedFiles.push({
+                        url: result.url,
+                        title: result.original_name
+                    });
+                    renderFileList();
+
+                } catch (error) {
+                    alert("Upload Failed: " + error);
+                } finally {
+                    progressDiv.remove();
+                }
+            }
+
+            function renderFileList() {
+                if (!fileList) return;
+                fileList.innerHTML = '';
+                uploadedFiles.forEach((file, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+
+                    let preview = '';
+                    if (blockType === 'Gallery') {
+                        preview = `<img src="${file.url}" alt="preview">`;
+                    } else {
+                        preview = `<span class="material-icons file-icon">description</span>`;
+                    }
+
+                    const inputPlaceholder = blockType === 'File' ? 'Description' : (blockType === 'Audio' ? 'Song Title' : 'Caption (Optional)');
+
+                    div.innerHTML = `
+                        ${preview}
+                        <div class="file-info">
+                            <div class="file-name">${file.url.split('/').pop()}</div>
+                            ${blockType !== 'Gallery' ? `<input type="text" class="form-input" placeholder="${inputPlaceholder}" value="${file.title}" onchange="window.updateFileTitle(${index}, this.value)">` : ''}
+                        </div>
+                        <div class="remove-btn" onclick="window.removeFile(${index})">
+                            <span class="material-icons">close</span>
+                        </div>
+                    `;
+                    fileList.appendChild(div);
+                });
+            }
+
+            // Expose helpers globally so onclick handlers work
+            window.removeFile = function (index) {
+                uploadedFiles.splice(index, 1);
+                renderFileList();
+            };
+
+            window.updateFileTitle = function (index, value) {
+                uploadedFiles[index].title = value;
+            };
+
+            // --- Form Submission ---
+            form.addEventListener('submit', function (e) {
+                // CRITICAL: Prevent default submission so we can update values first
+                e.preventDefault();
+
+                console.log('Form submitting, block type:', blockType);
+
+                if (blockType === 'Text') {
+                    // Explicitly sync Quill content to hidden input before submission
+                    if (typeof quill !== 'undefined' && quill) {
+                        const htmlContent = quill.root.innerHTML;
+                        console.log('Quill content being saved:', htmlContent.substring(0, 100));
+                        if (contentInput) {
+                            contentInput.value = htmlContent;
+                            console.log('Hidden input value set to:', contentInput.value.substring(0, 100));
+                        }
+                    } else {
+                        console.warn('Quill instance not found!');
+                    }
+                } else if (blockType === 'Video') {
+                    const vidInput = document.getElementById('video-url-input');
+                    if (contentInput && vidInput) {
+                        contentInput.value = vidInput.value;
+                        console.log('Video URL saved:', vidInput.value);
+                    }
+                } else {
+                    // Serialize files
+                    let data;
+                    if (blockType === 'Gallery') {
+                        data = uploadedFiles.map(f => f.url);
+                    } else {
+                        data = uploadedFiles.map(f => [f.url, f.title]);
+                    }
+                    const jsonData = JSON.stringify(data);
+                    console.log('File data being saved:', jsonData);
+                    if (contentInput) contentInput.value = jsonData;
+                }
+
+                console.log('Final content value:', contentInput ? contentInput.value.substring(0, 100) : 'NO CONTENT INPUT');
+
+                // Now submit the form with updated values
+                form.submit();
+            });
+        };
+    </script>
+
+</head>
+
+
+
+<body hx-boost="true" hx-target="main" hx-select="main">
+    <div id="canvas-container"></div>
+    <section class="menu menu--circle">
+        <input type="checkbox" id="menu__active" />
+        <label for="menu__active" class="menu__active">
+            <div class="menu__toggle">
+                <div class="icon">
+                    <div class="hamburger"></div>
+                </div>
+            </div>
+            <div class="menu__listings">
+                <ul class="circle">
+                    <li>
+                        <div class="placeholder">
+                            <div class="upside">
+                                <a href="/contact" class="button" title="Contact"><span
+                                        class="material-icons">email</span></a>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="placeholder">
+                            <div class="upside">
+                                <a href="/" class="button" title="Home"><span class="material-icons">home</span></a>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="placeholder">
+                            <div class="upside">
+                                <a href="/about" class="button" title="Bio"><span
+                                        class="material-icons">person</span></a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </label>
+    </section>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        {% block footer %}
+        <p>&copy; 2024</p>
+        {% endblock %}
+    </footer>
+
+    <div id="confirmModal" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <h3 id="confirmTitle">Are you sure?</h3>
+            <p id="confirmMessage">This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="cancelBtn" class="btn">Cancel</button>
+                <button id="confirmBtn" class="btn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="alertModal" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <h3 id="alertTitle">Error</h3>
+            <p id="alertMessage">Something went wrong.</p>
+            <div class="modal-actions">
+                <button id="alertOkBtn" class="btn">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('confirmModal');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const confirmTitle = document.getElementById('confirmTitle');
+            const confirmMessage = document.getElementById('confirmMessage');
+            let confirmCallback = null;
+
+            window.showConfirm = function (title, message, callback, btnText = 'Confirm') {
+                confirmTitle.textContent = title;
+                confirmMessage.textContent = message;
+                confirmBtn.textContent = btnText;
+                confirmCallback = callback;
+                modal.style.display = 'flex';
+            };
+
+            // Open modal for forms with class 'confirm-delete'
+            document.body.addEventListener('submit', function (e) {
+                if (e.target.classList.contains('confirm-delete')) {
+                    e.preventDefault();
+                    window.showConfirm(
+                        'Are you sure?',
+                        'This action cannot be undone.',
+                        () => e.target.submit(),
+                        'Delete'
+                    );
+                }
+            });
+
+            // Confirm action
+            confirmBtn.addEventListener('click', function () {
+                if (confirmCallback) {
+                    confirmCallback();
+                }
+                modal.style.display = 'none';
+            });
+
+            // Cancel action
+            cancelBtn.addEventListener('click', function () {
+                modal.style.display = 'none';
+                confirmCallback = null;
+            });
+
+            // Close on outside click
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                    confirmCallback = null;
+                }
+            });
+
+            // --- Alert Modal Logic ---
+            const alertModal = document.getElementById('alertModal');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertOkBtn = document.getElementById('alertOkBtn');
+
+            window.showAlert = function (title, message) {
+                alertTitle.textContent = title;
+                alertMessage.textContent = message;
+                alertModal.style.display = 'flex';
+            };
+
+            alertOkBtn.addEventListener('click', function () {
+                alertModal.style.display = 'none';
+            });
+
+            alertModal.addEventListener('click', function (e) {
+                if (e.target === alertModal) {
+                    alertModal.style.display = 'none';
+                }
+            });
+
+            // --- Menu Closing Logic ---
+            const menuCheckbox = document.getElementById('menu__active');
+            const menuSection = document.querySelector('.menu');
+            const menuLinks = document.querySelectorAll('.menu__listings a');
+
+            // Close menu when a link is clicked
+            menuLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    menuCheckbox.checked = false;
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                // If menu is open AND click is NOT inside the menu section
+                if (menuCheckbox.checked && !menuSection.contains(e.target)) {
+                    menuCheckbox.checked = false;
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
